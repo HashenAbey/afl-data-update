@@ -12,6 +12,8 @@ jobs:
       GITHUB_PAT: ${{ secrets.GH_PAT }}
     steps:
     - uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.GH_PAT }}
     
     - name: Install system dependencies
       run: |
@@ -32,12 +34,14 @@ jobs:
       run: Rscript update_afl_data.R
       
     - name: Commit and push if changed
+      env:
+        GH_PAT: ${{ secrets.GH_PAT }}
       run: |
         git config --global user.email "action@github.com"
         git config --global user.name "GitHub Action"
         git add -A
         git commit -m "Update AFL data" || exit 0
-        git push
+        git push https://${GH_PAT}@github.com/${GITHUB_REPOSITORY}.git
 
     - name: Upload CSVs to PythonAnywhere
       env:
