@@ -8,6 +8,8 @@ on:
 jobs:
   update-data:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GH_PAT }}
     steps:
     - uses: actions/checkout@v2
     
@@ -22,6 +24,7 @@ jobs:
     - name: Install R dependencies
       run: |
         install.packages(c("remotes", "curl"), repos = "https://cloud.r-project.org", dependencies = TRUE)
+        Sys.setenv(GITHUB_PAT = Sys.getenv("GITHUB_PAT"))
         remotes::install_github("jimmyday12/fitzRoy")
       shell: Rscript {0}
       
