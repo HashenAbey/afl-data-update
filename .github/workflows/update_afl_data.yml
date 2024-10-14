@@ -11,7 +11,8 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GH_PAT }}
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
       with:
         token: ${{ secrets.GH_PAT }}
     
@@ -60,8 +61,12 @@ jobs:
       env:
         PYTHONANYWHERE_TOKEN: ${{ secrets.PYTHONANYWHERE_TOKEN }}
       run: |
+        # List directory contents
+        echo "Current directory contents:"
+        ls -la
+        
         # First, update the script content
-        curl -X POST \
+        curl -v -X POST \
           -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
           -F "content=@update_database.py" \
           https://www.pythonanywhere.com/api/v0/user/testingafl/files/path/home/testingafl/afl_ranking_system/update_database.py
