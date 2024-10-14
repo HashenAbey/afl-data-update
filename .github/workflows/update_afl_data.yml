@@ -60,10 +60,19 @@ jobs:
       env:
         PYTHONANYWHERE_TOKEN: ${{ secrets.PYTHONANYWHERE_TOKEN }}
       run: |
+        # First, update the script content
+        curl -X POST \
+          -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
+          -F "content=@update_database.py" \
+          https://www.pythonanywhere.com/api/v0/user/testingafl/files/path/home/testingafl/afl_ranking_system/update_database.py
+        
+        # Then, execute the updated script
         response=$(curl -X POST \
           -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
-          https://www.pythonanywhere.com/api/v0/user/testingafl/files/path/home/testingafl/afl_ranking_system/update_database.py \
-          -d "command=python3 /home/testingafl/afl_ranking_system/update_database.py")
+          https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/ \
+          -d "executable=/home/testingafl/afl_ranking_system/venv/bin/python" \
+          -d "arguments=/home/testingafl/afl_ranking_system/update_database.py" \
+          -d "working_directory=/home/testingafl/afl_ranking_system")
         echo "Full Response: $response"
         if [[ $response != *"200"* ]]; then
           echo "Failed to run update script"
