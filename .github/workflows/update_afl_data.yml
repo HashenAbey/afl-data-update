@@ -61,15 +61,33 @@ jobs:
       env:
         PYTHONANYWHERE_TOKEN: ${{ secrets.PYTHONANYWHERE_TOKEN }}
       run: |
-        response=$(curl -X POST \
+        # Create a console
+        console_response=$(curl -X POST \
           -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
           https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/ \
           -d "executable=/home/testingafl/afl_ranking_system/venv/bin/python" \
-          -d "arguments=/home/testingafl/afl_ranking_system/update_database.py" \
           -d "working_directory=/home/testingafl/afl_ranking_system")
-        echo "Full Response: $response"
-        if [[ $response != *"200"* ]]; then
-          echo "Failed to run update script"
-          echo "Error details: $response"
+        console_id=$(echo $console_response | jq -r .id)
+        
+        # Run the script
+        curl -X POST \
+          -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
+          https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/$console_id/send_input/ \
+          -d "input=exec(open('update_database.py').read())"
+        
+        # Wait for the script to finish (adjust sleep time as needed)
+        sleep 30
+        
+        # Get console output
+        output=$(curl -X GET \
+          -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
+          https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/$console_id/get_latest_output/)
+        
+        echo "Script output:"
+        echo "$output"
+        
+        # Check for errors in the output
+        if [[ $output == *"Error"* ]] || [[ $output == *"Exception"* ]]; then
+          echo "Script execution failed"
           exit 1
         fi
