@@ -61,74 +61,93 @@ jobs:
       env:
         PYTHONANYWHERE_TOKEN: ${{ secrets.PYTHONANYWHERE_TOKEN }}
       run: |
-        # Run the script using the tasks API
-        task_response=$(curl -s -w "\n%{http_code}" -X POST \
+        # Create a console
+        console_response=$(curl -s -w "\n%{http_code}" -X POST \
           -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d '{"command": "python /home/testingafl/afl_ranking_system/update_database.py", "enabled": true, "interval": "daily", "hour": 4, "minute": 0}' \
-          https://www.pythonanywhere.com/api/v0/user/testingafl/tasks/)
+          https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/ \
+          -d "executable=/home/testingafl/afl_ranking_system/venv/bin/python" \
+          -d "working_directory=/home/testingafl/afl_ranking_system")
         
-        task_status=$(echo "$task_response" | tail -n1)
-        task_body=$(echo "$task_response" | sed '$d')
+        http_status=$(echo "$console_response" | tail -n1)
+        response_body=$(echo "$console_response" | sed '$d')
         
-        echo "Create task HTTP Status: $task_status"
-        echo "Create task response:"
-        echo "$task_body"
+        echo "HTTP Status: $http_status"
+        echo "Raw console response:"
+        echo "$response_body"
         
-        if [ "$task_status" -ne 201 ]; then
-          echo "Failed to create task. HTTP status: $task_status"
+        if [ "$http_status" -ne 201 ]; then
+          echo "Failed to create console. HTTP status: $http_status"
           exit 1
         fi
         
-        task_id=$(echo "$task_body" | jq -r .id)
+        console_id=$(echo "$response_body" | jq -r .id)
         
-        if [ -z "$task_id" ]; then
-          echo "Failed to extract task ID. Exiting."
+        if [ -z "$console_id" ]; then
+          echo "Failed to extract console ID. Exiting."
           exit 1
         fi
         
-        echo "Task ID: $task_id"
+        echo "Console ID: $console_id"
         
-        # Wait for the task to complete (adjust sleep time as needed)
-        echo "Waiting for task to complete..."
+        # Wait for the console to be ready
+        echo "Waiting for console to be ready..."
+        sleep 10
+        
+        # Run the script
+        run_response=$(curl -s -w "\n%{http_code}" -X POST \
+          -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
+          https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/$console_id/send_input/ \
+          -d "input=import sys; sys.path.append('/home/testingafl/afl_ranking_system'); import update_database; update_database.update_database()")
+        
+        run_status=$(echo "$run_response" | tail -n1)
+        run_body=$(echo "$run_response" | sed '$d')
+        
+        echo "Run script HTTP Status: $run_status"
+        echo "Run script response:"
+        echo "$run_body"
+        
+        if [ "$run_status" -ne 200 ]; then
+          echo "Failed to run script. HTTP status: $run_status"
+          exit 1
+        fi
+        
+        # Wait for the script to finish (adjust sleep time as needed)
+        echo "Waiting for script to complete..."
         sleep 60
         
-        # Get task status
-        status_response=$(curl -s -w "\n%{http_code}" -X GET \
+        # Get console output
+        output_response=$(curl -s -w "\n%{http_code}" -X GET \
           -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
-          https://www.pythonanywhere.com/api/v0/user/testingafl/tasks/$task_id/)
+          https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/$console_id/get_latest_output/)
         
-        status_http_status=$(echo "$status_response" | tail -n1)
-        status_body=$(echo "$status_response" | sed '$d')
+        output_status=$(echo "$output_response" | tail -n1)
+        output=$(echo "$output_response" | sed '$d')
         
-        echo "Get task status HTTP Status: $status_http_status"
-        echo "Task status:"
-        echo "$status_body"
+        echo "Get output HTTP Status: $output_status"
+        echo "Script output:"
+        echo "$output"
         
-        if [ "$status_http_status" -ne 200 ]; then
-          echo "Failed to get task status. HTTP status: $status_http_status"
+        if [ "$output_status" -ne 200 ]; then
+          echo "Failed to get script output. HTTP status: $output_status"
           exit 1
         fi
         
-        task_enabled=$(echo "$status_body" | jq -r .enabled)
-        
-        if [ "$task_enabled" = "true" ]; then
-          echo "Task completed successfully"
-        else
-          echo "Task failed to complete"
+        # Check for errors in the output
+        if [[ $output == *"Error"* ]] || [[ $output == *"Exception"* ]]; then
+          echo "Script execution failed"
           exit 1
         fi
         
-        # Clean up: delete the task
+        # Clean up: delete the console
         delete_response=$(curl -s -w "\n%{http_code}" -X DELETE \
           -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
-          https://www.pythonanywhere.com/api/v0/user/testingafl/tasks/$task_id/)
+          https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/$console_id/)
         
         delete_status=$(echo "$delete_response" | tail -n1)
         
-        echo "Delete task HTTP Status: $delete_status"
+        echo "Delete console HTTP Status: $delete_status"
         
         if [ "$delete_status" -ne 204 ]; then
-          echo "Failed to delete task. HTTP status: $delete_status"
+          echo "Failed to delete console. HTTP status: $delete_status"
           # Don't exit here, as the main task has already completed
         fi
