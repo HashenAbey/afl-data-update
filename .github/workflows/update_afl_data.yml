@@ -62,12 +62,11 @@ jobs:
       run: |
         response=$(curl -X POST \
           -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
-          https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/ \
-          -d "executable=/home/testingafl/afl_ranking_system/venv/bin/python" \
-          -d "arguments=/home/testingafl/afl_ranking_system/update_database.py" \
-          -d "working_directory=/home/testingafl/afl_ranking_system")
-        echo "Response: $response"
+          https://www.pythonanywhere.com/api/v0/user/testingafl/files/path/home/testingafl/afl_ranking_system/update_database.py \
+          -d "command=python3 /home/testingafl/afl_ranking_system/update_database.py")
+        echo "Full Response: $response"
         if [[ $response != *"200"* ]]; then
-          echo "Failed to start console task"
+          echo "Failed to run update script"
+          echo "Error details: $response"
           exit 1
         fi
