@@ -57,21 +57,10 @@ jobs:
           -F "content=@afl_match_results_concise.csv" \
           https://www.pythonanywhere.com/api/v0/user/testingafl/files/path/home/testingafl/afl_ranking_system/afl_match_results_concise.csv
 
-    - name: Update database on PythonAnywhere
+    - name: Run update_database.py on PythonAnywhere
       env:
         PYTHONANYWHERE_TOKEN: ${{ secrets.PYTHONANYWHERE_TOKEN }}
       run: |
-        # List directory contents
-        echo "Current directory contents:"
-        ls -la
-        
-        # First, update the script content
-        curl -v -X POST \
-          -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
-          -F "content=@update_database.py" \
-          https://www.pythonanywhere.com/api/v0/user/testingafl/files/path/home/testingafl/afl_ranking_system/update_database.py
-        
-        # Then, execute the updated script
         response=$(curl -X POST \
           -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
           https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/ \
