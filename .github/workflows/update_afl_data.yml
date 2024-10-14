@@ -89,25 +89,42 @@ jobs:
         
         echo "Console ID: $console_id"
         
-        # Run the script
-        run_response=$(curl -s -w "\n%{http_code}" -X POST \
-          -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
-          https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/$console_id/send_input/ \
-          -d "input=exec(open('update_database.py').read())")
+        # Wait for the console to be ready
+        echo "Waiting for console to be ready..."
+        sleep 10
         
-        run_status=$(echo "$run_response" | tail -n1)
-        run_body=$(echo "$run_response" | sed '$d')
+        # Run the script with retries
+        max_retries=5
+        retry_count=0
+        while [ $retry_count -lt $max_retries ]; do
+          run_response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Token $PYTHONANYWHERE_TOKEN" \
+            https://www.pythonanywhere.com/api/v0/user/testingafl/consoles/$console_id/send_input/ \
+            -d "input=exec(open('update_database.py').read())")
+          
+          run_status=$(echo "$run_response" | tail -n1)
+          run_body=$(echo "$run_response" | sed '$d')
+          
+          echo "Run script HTTP Status: $run_status"
+          echo "Run script response:"
+          echo "$run_body"
+          
+          if [ "$run_status" -eq 200 ]; then
+            break
+          fi
+          
+          echo "Failed to run script. Retrying in 5 seconds..."
+          sleep 5
+          retry_count=$((retry_count + 1))
+        done
         
-        echo "Run script HTTP Status: $run_status"
-        echo "Run script response:"
-        echo "$run_body"
-        
-        if [ "$run_status" -ne 200 ]; then
-          echo "Failed to run script. HTTP status: $run_status"
+        if [ $retry_count -eq $max_retries ]; then
+          echo "Failed to run script after $max_retries attempts."
           exit 1
         fi
         
         # Wait for the script to finish (adjust sleep time as needed)
+        echo "Waiting for script to complete..."
         sleep 30
         
         # Get console output
