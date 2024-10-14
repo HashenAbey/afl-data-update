@@ -18,6 +18,7 @@ jobs:
     
     - name: Install system dependencies
       run: |
+        sudo apt-get install -y jq
         sudo apt-get update
         sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev
 
